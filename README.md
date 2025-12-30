@@ -1,17 +1,16 @@
 # Crossword — Outil d’aide aux mots croisés
-
-👉 **Accès direct à l’outil en ligne**  
+**Accès direct à l’outil en ligne**  
 https://vico-de.github.io/crossword/
 
 ---
 
 ## Présentation
 
-**Crossword** est un outil open-source, 100 % côté navigateur, destiné à aider à :
+**Crossword** est un outil open-source, page web navigateur, destiné à aider à :
 
 - enrichir un dictionnaire de mots (ajout / édition / suppression),
 - gérer des définitions associées aux mots,
-- rechercher des mots par **pattern** (ex: `TE__`, `TE__*`),
+- rechercher des mots par **pattern** (ex: `T__`, `T__*`),
 - résoudre des **croisements simples** entre 2 ou 3 mots.
 
 L’application fonctionne **sans serveur**, directement dans le navigateur, grâce à :
@@ -23,14 +22,14 @@ L’application fonctionne **sans serveur**, directement dans le navigateur, gr�
 
 ## Principe de fonctionnement
 
-1. Tu charges un fichier **SQLite (.db)** depuis ton ordinateur.
-2. La base est copiée et stockée **localement dans ton navigateur**.
-3. Tu travailles librement (ajouts, modifications, suppressions).
-4. Lorsque tu as terminé, tu **exportes manuellement la base** mise à jour.
-5. Le fichier exporté remplace ton fichier `.db` original si besoin.
+1. Charger un fichier **SQLite (.db)** en local.
+2. La base est copiée et stockée **localement dans le navigateur**.
+3. Travailler librement (ajouts, modifications, suppressions).
+4. Lorsque terminé, **exporter manuellement la base** mise à jour.
+5. Le fichier exporté doit remplacer le fichier `.db` original.
 
-👉 **Aucune donnée n’est envoyée sur un serveur.**  
-Tout reste local à ton navigateur tant que tu n’exportes pas.
+**Aucune donnée n’est envoyée sur un serveur.**  
+Tout reste local au navigateur tant que ce n'est pas exporter.
 
 ---
 
