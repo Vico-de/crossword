@@ -1,5 +1,10 @@
 import initSqlJs from "sql.js";
 import { get, set, del } from "idb-keyval";
+import wasmUrl from "sql.js/dist/sql-wasm.wasm?url";
+
+const SQL = await initSqlJs({
+  locateFile: () => wasmUrl,
+});
 
 const IDB_KEY = "crossword_sqlite_db_v1";
 
@@ -71,4 +76,3 @@ export async function exec(sql, params = []) {
   DB.run(sql, params);
   await persistDbToIndexedDb();
 }
-
