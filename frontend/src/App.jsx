@@ -196,11 +196,19 @@ function WebDbGate({ children }) {
 
         <div style={ui.card}>
           <p style={{ marginTop: 0 }}>
-            Ce mode fonctionne sans serveur. Charge une base SQLite (.db) une première fois, puis elle sera sauvegardée
-            automatiquement dans le navigateur (IndexedDB).
+            Ce mode fonctionne sans serveur. Charge une base SQLite (.db) une
+            première fois, puis elle sera sauvegardée automatiquement dans le
+            navigateur (IndexedDB).
           </p>
 
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 10,
+              flexWrap: "wrap",
+              alignItems: "center",
+            }}
+          >
             <label style={{ ...ui.button, cursor: "pointer" }}>
               Charger un fichier .db
               <input
@@ -220,7 +228,9 @@ function WebDbGate({ children }) {
             </button>
           </div>
 
-          {err ? <div style={{ marginTop: 10, whiteSpace: "pre-wrap" }}>{err}</div> : null}
+          {err ? (
+            <div style={{ marginTop: 10, whiteSpace: "pre-wrap" }}>{err}</div>
+          ) : null}
         </div>
       </div>
     );
@@ -228,6 +238,31 @@ function WebDbGate({ children }) {
 
   // ready = true => render app
   return children({ hasDb, exportDb, clearDb, err });
+}
+function buildLikeFromPattern(raw) {
+  // Syntaxe:
+  // - prefix "-" : match n'importe où (contient)
+  // - suffix "*" : ancre fin de mot
+  // - "_" : wildcard 1 caractère (SQL LIKE)
+  let p = (raw || "").trim().toUpperCase().replace(/\s+/g, "");
+  if (!p) return null;
+
+  const contains = p.startsWith("-");
+  if (contains) p = p.slice(1);
+
+  const endAnchored = p.endsWith("*");
+  const core = endAnchored ? p.slice(0, -1) : p;
+  if (!core) return null;
+
+  // Cas:
+  // 1) contient + fin:   %core
+  // 2) contient + libre: %core%
+  // 3) debut + fin:      core
+  // 4) debut + libre:    core%
+  if (contains && endAnchored) return `%${core}`;
+  if (contains && !endAnchored) return `%${core}%`;
+  if (!contains && endAnchored) return `${core}`;
+  return `${core}%`;
 }
 
 /* -----------------------------
@@ -283,7 +318,7 @@ function PageMots({ onDirty }) {
       { field: "normalise", hide: true },
       { field: "rowid", hide: true },
     ],
-    []
+    [],
   );
 
   const patchSelectedMot = useCallback((patch) => {
@@ -291,14 +326,13 @@ function PageMots({ onDirty }) {
     if (!cur) return;
 
     setSelectedMot((prev) => (prev ? { ...prev, ...patch } : prev));
-    setRows((prev) => prev.map((r) => (r.rowid === cur.rowid ? { ...r, ...patch } : r)));
+    setRows((prev) =>
+      prev.map((r) => (r.rowid === cur.rowid ? { ...r, ...patch } : r)),
+    );
   }, []);
 
   const normalizeForDb = useCallback((s) => {
-    return (s || "")
-      .trim()
-      .toUpperCase()
-      .replace(/\s+/g, "");
+    return (s || "").trim().toUpperCase().replace(/\s+/g, "");
   }, []);
 
   const fetchRows = useCallback(() => {
@@ -315,7 +349,9 @@ function PageMots({ onDirty }) {
       if (onlyActif) where.push("actif = 1");
 
       if (onlyNoDefs) {
-        where.push("(SELECT COUNT(*) FROM definitions d WHERE d.mot_normalise = mots_fr_filtre.normalise) = 0");
+        where.push(
+          "(SELECT COUNT(*) FROM definitions d WHERE d.mot_normalise = mots_fr_filtre.normalise) = 0",
+        );
       }
 
       if (q) {
@@ -365,7 +401,7 @@ function PageMots({ onDirty }) {
        FROM definitions
        WHERE mot_normalise = ?
        ORDER BY niveau ASC, id ASC`,
-      [motNormalise]
+      [motNormalise],
     );
     return Array.isArray(d) ? d : d?.rows || [];
   }, []);
@@ -396,7 +432,7 @@ function PageMots({ onDirty }) {
         setDefsStatus("Erreur chargement définitions");
       }
     },
-    [reloadDefinitions, patchSelectedMot]
+    [reloadDefinitions, patchSelectedMot],
   );
 
   const toggleFavoris = useCallback(async () => {
@@ -405,7 +441,10 @@ function PageMots({ onDirty }) {
 
     const next = Number(cur.favoris) === 1 ? 0 : 1;
     try {
-      await exec("UPDATE mots_fr_filtre SET favoris = ? WHERE rowid = ?", [next, cur.rowid]);
+      await exec("UPDATE mots_fr_filtre SET favoris = ? WHERE rowid = ?", [
+        next,
+        cur.rowid,
+      ]);
       patchSelectedMot({ favoris: next });
       onDirty?.();
     } catch (e) {
@@ -419,7 +458,10 @@ function PageMots({ onDirty }) {
 
     const next = Number(cur.actif) === 1 ? 0 : 1;
     try {
-      await exec("UPDATE mots_fr_filtre SET actif = ? WHERE rowid = ?", [next, cur.rowid]);
+      await exec("UPDATE mots_fr_filtre SET actif = ? WHERE rowid = ?", [
+        next,
+        cur.rowid,
+      ]);
       patchSelectedMot({ actif: next });
       onDirty?.();
     } catch (e) {
@@ -431,11 +473,15 @@ function PageMots({ onDirty }) {
     const cur = selectedMotRef.current;
     if (!cur) return;
 
-    const ok = window.confirm(`Supprimer définitivement le mot "${cur.base}" ?`);
+    const ok = window.confirm(
+      `Supprimer définitivement le mot "${cur.base}" ?`,
+    );
     if (!ok) return;
 
     try {
-      await exec("DELETE FROM definitions WHERE mot_normalise = ?", [cur.normalise]);
+      await exec("DELETE FROM definitions WHERE mot_normalise = ?", [
+        cur.normalise,
+      ]);
       await exec("DELETE FROM mots_fr_filtre WHERE rowid = ?", [cur.rowid]);
 
       onDirty?.();
@@ -460,11 +506,10 @@ function PageMots({ onDirty }) {
 
     setSavingDef(true);
     try {
-      await exec("INSERT INTO definitions (mot_normalise, definition, niveau) VALUES (?, ?, ?)", [
-        cur.normalise,
-        txt,
-        Number(newDefLevel),
-      ]);
+      await exec(
+        "INSERT INTO definitions (mot_normalise, definition, niveau) VALUES (?, ?, ?)",
+        [cur.normalise, txt, Number(newDefLevel)],
+      );
 
       onDirty?.();
 
@@ -503,11 +548,10 @@ function PageMots({ onDirty }) {
 
     setSavingEdit(true);
     try {
-      await exec("UPDATE definitions SET definition = ?, niveau = ? WHERE id = ?", [
-        txt,
-        Number(editDefLevel),
-        editingDefId,
-      ]);
+      await exec(
+        "UPDATE definitions SET definition = ?, niveau = ? WHERE id = ?",
+        [txt, Number(editDefLevel), editingDefId],
+      );
 
       onDirty?.();
 
@@ -523,7 +567,15 @@ function PageMots({ onDirty }) {
     } finally {
       setSavingEdit(false);
     }
-  }, [editingDefId, editDefText, editDefLevel, reloadDefinitions, patchSelectedMot, onDirty, cancelEditDef]);
+  }, [
+    editingDefId,
+    editDefText,
+    editDefLevel,
+    reloadDefinitions,
+    patchSelectedMot,
+    onDirty,
+    cancelEditDef,
+  ]);
 
   const deleteDef = useCallback(
     async (id) => {
@@ -551,7 +603,7 @@ function PageMots({ onDirty }) {
         setDeletingId(null);
       }
     },
-    [reloadDefinitions, patchSelectedMot, onDirty, editingDefId, cancelEditDef]
+    [reloadDefinitions, patchSelectedMot, onDirty, editingDefId, cancelEditDef],
   );
 
   const addMot = useCallback(async () => {
@@ -566,7 +618,10 @@ function PageMots({ onDirty }) {
     setAddMotStatus("");
 
     try {
-      const exists = query(`SELECT rowid FROM mots_fr_filtre WHERE normalise = ? LIMIT 1`, [normalise]);
+      const exists = query(
+        `SELECT rowid FROM mots_fr_filtre WHERE normalise = ? LIMIT 1`,
+        [normalise],
+      );
       const exRow = Array.isArray(exists) ? exists[0] : (exists?.rows || [])[0];
       if (exRow?.rowid) {
         setAddMotStatus("Ce mot existe déjà (normalise identique).");
@@ -577,7 +632,14 @@ function PageMots({ onDirty }) {
       await exec(
         `INSERT INTO mots_fr_filtre (base, normalise, longueur, source, actif, favoris)
          VALUES (?, ?, ?, ?, ?, ?)`,
-        [base, normalise, longueur, 1, newMotActif ? 1 : 0, newMotFavoris ? 1 : 0]
+        [
+          base,
+          normalise,
+          longueur,
+          1,
+          newMotActif ? 1 : 0,
+          newMotFavoris ? 1 : 0,
+        ],
       );
 
       onDirty?.();
@@ -594,7 +656,14 @@ function PageMots({ onDirty }) {
     } finally {
       setAddingMot(false);
     }
-  }, [newMotBase, newMotActif, newMotFavoris, normalizeForDb, fetchRows, onDirty]);
+  }, [
+    newMotBase,
+    newMotActif,
+    newMotFavoris,
+    normalizeForDb,
+    fetchRows,
+    onDirty,
+  ]);
 
   return (
     <div style={{ height: "100%", display: "flex", minHeight: 0 }}>
@@ -609,17 +678,29 @@ function PageMots({ onDirty }) {
         <div style={ui.card}>
           <div style={ui.row}>
             <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <input type="checkbox" checked={onlyFav} onChange={(e) => setOnlyFav(e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={onlyFav}
+                onChange={(e) => setOnlyFav(e.target.checked)}
+              />
               Favoris
             </label>
 
             <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <input type="checkbox" checked={onlyNoDefs} onChange={(e) => setOnlyNoDefs(e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={onlyNoDefs}
+                onChange={(e) => setOnlyNoDefs(e.target.checked)}
+              />
               Sans définitions
             </label>
 
             <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <input type="checkbox" checked={onlyActif} onChange={(e) => setOnlyActif(e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={onlyActif}
+                onChange={(e) => setOnlyActif(e.target.checked)}
+              />
               Actifs
             </label>
 
@@ -648,20 +729,34 @@ function PageMots({ onDirty }) {
             />
 
             <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <input type="checkbox" checked={newMotFavoris} onChange={(e) => setNewMotFavoris(e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={newMotFavoris}
+                onChange={(e) => setNewMotFavoris(e.target.checked)}
+              />
               Favori
             </label>
 
             <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <input type="checkbox" checked={newMotActif} onChange={(e) => setNewMotActif(e.target.checked)} />
+              <input
+                type="checkbox"
+                checked={newMotActif}
+                onChange={(e) => setNewMotActif(e.target.checked)}
+              />
               Actif
             </label>
 
-            <button style={ui.button} onClick={addMot} disabled={addingMot || !newMotBase.trim()}>
+            <button
+              style={ui.button}
+              onClick={addMot}
+              disabled={addingMot || !newMotBase.trim()}
+            >
               {addingMot ? "Ajout..." : "Ajouter"}
             </button>
 
-            {addMotStatus ? <div style={{ opacity: 0.8 }}>{addMotStatus}</div> : null}
+            {addMotStatus ? (
+              <div style={{ opacity: 0.8 }}>{addMotStatus}</div>
+            ) : null}
           </div>
         </div>
 
@@ -684,15 +779,25 @@ function PageMots({ onDirty }) {
 
         {selectedMot ? (
           <div style={ui.card}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                gap: 12,
+              }}
+            >
               <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 18, fontWeight: 800 }}>{selectedMot.base}</div>
+                <div style={{ fontSize: 18, fontWeight: 800 }}>
+                  {selectedMot.base}
+                </div>
                 <div style={{ opacity: 0.75 }}>
                   L={selectedMot.longueur} — defs: {selectedMot.nb_definitions}
                 </div>
               </div>
 
-              <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+              <div
+                style={{ display: "flex", gap: 8, alignItems: "flex-start" }}
+              >
                 <button style={ui.button} onClick={toggleFavoris}>
                   {Number(selectedMot.favoris) === 1 ? "★ Favori" : "☆ Favori"}
                 </button>
@@ -719,7 +824,9 @@ function PageMots({ onDirty }) {
             <div style={{ marginTop: 10, opacity: 0.8 }}>{defsStatus}</div>
           </div>
         ) : (
-          <div style={{ ...ui.card, opacity: 0.75 }}>Sélectionne un mot dans la table.</div>
+          <div style={{ ...ui.card, opacity: 0.75 }}>
+            Sélectionne un mot dans la table.
+          </div>
         )}
 
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -728,16 +835,33 @@ function PageMots({ onDirty }) {
 
             return (
               <div key={d.id} style={ui.card}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 10, alignItems: "center" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 10,
+                    alignItems: "center",
+                  }}
+                >
                   <div style={{ fontWeight: 800 }}>Niveau {d.niveau}</div>
 
                   <div style={{ display: "flex", gap: 8 }}>
-                    <button style={ui.button} onClick={() => startEditDef(d)} disabled={savingEdit || deletingId === d.id}>
+                    <button
+                      style={ui.button}
+                      onClick={() => startEditDef(d)}
+                      disabled={savingEdit || deletingId === d.id}
+                    >
                       Éditer
                     </button>
 
                     <button
-                      style={{ ...ui.button, background: "#b00020", color: "white", borderColor: "#b00020", fontWeight: 800 }}
+                      style={{
+                        ...ui.button,
+                        background: "#b00020",
+                        color: "white",
+                        borderColor: "#b00020",
+                        fontWeight: 800,
+                      }}
                       onClick={() => deleteDef(d.id)}
                       disabled={savingEdit || deletingId === d.id}
                     >
@@ -749,24 +873,63 @@ function PageMots({ onDirty }) {
                 {!isEditing ? (
                   <div style={{ marginTop: 8 }}>{d.definition}</div>
                 ) : (
-                  <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 10 }}>
-                    <textarea value={editDefText} onChange={(e) => setEditDefText(e.target.value)} rows={3} style={ui.textarea} />
+                  <div
+                    style={{
+                      marginTop: 10,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 10,
+                    }}
+                  >
+                    <textarea
+                      value={editDefText}
+                      onChange={(e) => setEditDefText(e.target.value)}
+                      rows={3}
+                      style={ui.textarea}
+                    />
 
-                    <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                      <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 10,
+                        alignItems: "center",
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <label
+                        style={{
+                          display: "flex",
+                          gap: 6,
+                          alignItems: "center",
+                        }}
+                      >
                         Niveau
-                        <select value={editDefLevel} onChange={(e) => setEditDefLevel(Number(e.target.value))} style={ui.select}>
+                        <select
+                          value={editDefLevel}
+                          onChange={(e) =>
+                            setEditDefLevel(Number(e.target.value))
+                          }
+                          style={ui.select}
+                        >
                           <option value={1}>1</option>
                           <option value={2}>2</option>
                           <option value={3}>3</option>
                         </select>
                       </label>
 
-                      <button style={ui.button} onClick={saveEditDef} disabled={savingEdit || !editDefText.trim()}>
+                      <button
+                        style={ui.button}
+                        onClick={saveEditDef}
+                        disabled={savingEdit || !editDefText.trim()}
+                      >
                         {savingEdit ? "Enregistrement..." : "Sauvegarder"}
                       </button>
 
-                      <button style={ui.button} onClick={cancelEditDef} disabled={savingEdit}>
+                      <button
+                        style={ui.button}
+                        onClick={cancelEditDef}
+                        disabled={savingEdit}
+                      >
                         Annuler
                       </button>
                     </div>
@@ -779,7 +942,9 @@ function PageMots({ onDirty }) {
 
         {selectedMot ? (
           <div style={ui.card}>
-            <div style={{ fontWeight: 800, marginBottom: 8 }}>Ajouter une définition</div>
+            <div style={{ fontWeight: 800, marginBottom: 8 }}>
+              Ajouter une définition
+            </div>
 
             <textarea
               value={newDefText}
@@ -789,17 +954,33 @@ function PageMots({ onDirty }) {
               style={ui.textarea}
             />
 
-            <div style={{ display: "flex", gap: 10, alignItems: "center", marginTop: 10, flexWrap: "wrap" }}>
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                alignItems: "center",
+                marginTop: 10,
+                flexWrap: "wrap",
+              }}
+            >
               <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
                 Niveau
-                <select value={newDefLevel} onChange={(e) => setNewDefLevel(Number(e.target.value))} style={ui.select}>
+                <select
+                  value={newDefLevel}
+                  onChange={(e) => setNewDefLevel(Number(e.target.value))}
+                  style={ui.select}
+                >
                   <option value={1}>1</option>
                   <option value={2}>2</option>
                   <option value={3}>3</option>
                 </select>
               </label>
 
-              <button style={ui.button} onClick={saveDefinition} disabled={savingDef || !newDefText.trim()}>
+              <button
+                style={ui.button}
+                onClick={saveDefinition}
+                disabled={savingDef || !newDefText.trim()}
+              >
                 {savingDef ? "Enregistrement..." : "Enregistrer"}
               </button>
             </div>
@@ -809,7 +990,6 @@ function PageMots({ onDirty }) {
     </div>
   );
 }
-
 
 /* -----------------------------
    PAGE 2 : PATTERN
@@ -832,9 +1012,11 @@ function PagePattern() {
         return;
       }
 
-      const hasStar = p.endsWith("*");
-      const core = hasStar ? p.slice(0, -1) : p;
-      const like = hasStar ? core : `${core}%`;
+      const like = buildLikeFromPattern(pattern);
+      if (!like) {
+        setRows([]);
+        return;
+      }
 
       const where = ["normalise LIKE ?"];
       const params = [like];
@@ -879,11 +1061,20 @@ function PagePattern() {
       { field: "longueur", headerName: "L", width: 80 },
       { field: "nb_definitions", headerName: "Defs", width: 90 },
     ],
-    []
+    [],
   );
 
   return (
-    <div style={{ padding: 16, height: "100%", display: "flex", flexDirection: "column", gap: 10, minHeight: 0 }}>
+    <div
+      style={{
+        padding: 16,
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+        minHeight: 0,
+      }}
+    >
       <h2 style={ui.h2}>Recherche — Pattern</h2>
 
       <div style={ui.card}>
@@ -896,12 +1087,20 @@ function PagePattern() {
           />
 
           <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <input type="checkbox" checked={onlyFav} onChange={(e) => setOnlyFav(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={onlyFav}
+              onChange={(e) => setOnlyFav(e.target.checked)}
+            />
             Favoris
           </label>
 
           <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <input type="checkbox" checked={onlyActif} onChange={(e) => setOnlyActif(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={onlyActif}
+              onChange={(e) => setOnlyActif(e.target.checked)}
+            />
             Actifs
           </label>
 
@@ -959,11 +1158,25 @@ function PageCroisement() {
 
   const [loading, setLoading] = useState(false);
   const [solutions, setSolutions] = useState([]);
-  const [stats, setStats] = useState({ cand1: 0, cand2: 0, cand3: 0, returned: 0 });
+  const [stats, setStats] = useState({
+    cand1: 0,
+    cand2: 0,
+    cand3: 0,
+    returned: 0,
+  });
 
-  const p1 = useMemo(() => (pattern1 || "").trim().toUpperCase().replace(/\s+/g, ""), [pattern1]);
-  const p2 = useMemo(() => (pattern2 || "").trim().toUpperCase().replace(/\s+/g, ""), [pattern2]);
-  const p3 = useMemo(() => (pattern3 || "").trim().toUpperCase().replace(/\s+/g, ""), [pattern3]);
+  const p1 = useMemo(
+    () => (pattern1 || "").trim().toUpperCase().replace(/\s+/g, ""),
+    [pattern1],
+  );
+  const p2 = useMemo(
+    () => (pattern2 || "").trim().toUpperCase().replace(/\s+/g, ""),
+    [pattern2],
+  );
+  const p3 = useMemo(
+    () => (pattern3 || "").trim().toUpperCase().replace(/\s+/g, ""),
+    [pattern3],
+  );
 
   const cells1 = useMemo(() => (p1.endsWith("*") ? p1.slice(0, -1) : p1), [p1]);
   const cells2 = useMemo(() => (p2.endsWith("*") ? p2.slice(0, -1) : p2), [p2]);
@@ -1041,7 +1254,9 @@ function PageCroisement() {
     const W = maxX - minX + 1;
     const H = maxY - minY + 1;
 
-    const grid = Array.from({ length: H }, () => Array.from({ length: W }, () => "·"));
+    const grid = Array.from({ length: H }, () =>
+      Array.from({ length: W }, () => "·"),
+    );
 
     for (const pt of points) {
       const gx = pt.x - minX;
@@ -1052,7 +1267,20 @@ function PageCroisement() {
     }
 
     return grid.map((row) => row.join(" ")).join("\n");
-  }, [constraintsOk, dir1, dir2, dir3, pos1, pos2, pos3a, pos3b, cells1, cells2, cells3, useThird]);
+  }, [
+    constraintsOk,
+    dir1,
+    dir2,
+    dir3,
+    pos1,
+    pos2,
+    pos3a,
+    pos3b,
+    cells1,
+    cells2,
+    cells3,
+    useThird,
+  ]);
 
   const fetchCandidates = useCallback(async (pattern, limit) => {
     const p = (pattern || "").trim().toUpperCase();
@@ -1060,7 +1288,8 @@ function PageCroisement() {
 
     const hasStar = p.endsWith("*");
     const core = hasStar ? p.slice(0, -1) : p;
-    const like = hasStar ? core : `${core}%`;
+    const like = buildLikeFromPattern(pattern);
+    if (!like) return [];
 
     const sql = `
       SELECT
@@ -1131,7 +1360,12 @@ function PageCroisement() {
           if (out.length >= maxSolutions) break;
         }
 
-        setStats({ cand1: cand1.length, cand2: cand2.length, cand3: 0, returned: out.length });
+        setStats({
+          cand1: cand1.length,
+          cand2: cand2.length,
+          cand3: 0,
+          returned: out.length,
+        });
         setSolutions(out);
       } else {
         const [cand1, cand2, cand3] = await Promise.all([
@@ -1197,7 +1431,12 @@ function PageCroisement() {
           if (out.length >= maxSolutions) break;
         }
 
-        setStats({ cand1: cand1.length, cand2: cand2.length, cand3: cand3.length, returned: out.length });
+        setStats({
+          cand1: cand1.length,
+          cand2: cand2.length,
+          cand3: cand3.length,
+          returned: out.length,
+        });
         setSolutions(out);
       }
     } catch (e) {
@@ -1232,10 +1471,22 @@ function PageCroisement() {
       { field: "mot1", headerName: "Mot 1", flex: 1, minWidth: 160 },
       { field: "mot2", headerName: "Mot 2", flex: 1, minWidth: 160 },
     ];
-    if (useThird) base.splice(2, 0, { field: "mot3", headerName: "Mot 3", flex: 1, minWidth: 160 });
-    base.push({ field: "l1", headerName: "L1", width: 80 }, { field: "l2", headerName: "L2", width: 80 });
+    if (useThird)
+      base.splice(2, 0, {
+        field: "mot3",
+        headerName: "Mot 3",
+        flex: 1,
+        minWidth: 160,
+      });
+    base.push(
+      { field: "l1", headerName: "L1", width: 80 },
+      { field: "l2", headerName: "L2", width: 80 },
+    );
     if (useThird) base.push({ field: "l3", headerName: "L3", width: 80 });
-    base.push({ field: "defs1", headerName: "Defs1", width: 90 }, { field: "defs2", headerName: "Defs2", width: 90 });
+    base.push(
+      { field: "defs1", headerName: "Defs1", width: 90 },
+      { field: "defs2", headerName: "Defs2", width: 90 },
+    );
     if (useThird) base.push({ field: "defs3", headerName: "Defs3", width: 90 });
     return base;
   }, [useThird]);
@@ -1272,24 +1523,52 @@ function PageCroisement() {
           })}
         </div>
         <div style={{ opacity: 0.75 }}>
-          {selectedPos ? `Croisement: position ${selectedPos}` : "Clique une case pour définir le croisement"}
+          {selectedPos
+            ? `Croisement: position ${selectedPos}`
+            : "Clique une case pour définir le croisement"}
         </div>
       </div>
     );
   };
 
   return (
-    <div style={{ padding: 16, height: "100%", display: "flex", flexDirection: "column", gap: 10, minHeight: 0 }}>
+    <div
+      style={{
+        padding: 16,
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+        minHeight: 0,
+      }}
+    >
       <h2 style={ui.h2}>Recherche — Croisement (2 ou 3 mots)</h2>
 
       <div style={ui.card}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr 1fr",
+            gap: 12,
+          }}
+        >
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                alignItems: "center",
+                flexWrap: "wrap",
+              }}
+            >
               <div style={{ fontWeight: 800 }}>Mot 1</div>
               <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
                 Orientation
-                <select value={dir1} onChange={(e) => setDir1(e.target.value)} style={ui.select}>
+                <select
+                  value={dir1}
+                  onChange={(e) => setDir1(e.target.value)}
+                  style={ui.select}
+                >
                   <option value="H">Horizontal</option>
                   <option value="V">Vertical</option>
                 </select>
@@ -1302,18 +1581,39 @@ function PageCroisement() {
               style={ui.input}
             />
             {useThird ? (
-              <PatternCells label="Croisement Mot 1 ↔ Mot 3 (clic Mot 1)" cells={cells1} selectedPos={pos1} onPick={setPos1} />
+              <PatternCells
+                label="Croisement Mot 1 ↔ Mot 3 (clic Mot 1)"
+                cells={cells1}
+                selectedPos={pos1}
+                onPick={setPos1}
+              />
             ) : (
-              <PatternCells label="Croisement Mot 1 ↔ Mot 2 (clic Mot 1)" cells={cells1} selectedPos={pos1} onPick={setPos1} />
+              <PatternCells
+                label="Croisement Mot 1 ↔ Mot 2 (clic Mot 1)"
+                cells={cells1}
+                selectedPos={pos1}
+                onPick={setPos1}
+              />
             )}
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                alignItems: "center",
+                flexWrap: "wrap",
+              }}
+            >
               <div style={{ fontWeight: 800 }}>Mot 2</div>
               <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
                 Orientation
-                <select value={dir2} onChange={(e) => setDir2(e.target.value)} style={ui.select}>
+                <select
+                  value={dir2}
+                  onChange={(e) => setDir2(e.target.value)}
+                  style={ui.select}
+                >
                   <option value="H">Horizontal</option>
                   <option value="V">Vertical</option>
                 </select>
@@ -1326,18 +1626,39 @@ function PageCroisement() {
               style={ui.input}
             />
             {useThird ? (
-              <PatternCells label="Croisement Mot 2 ↔ Mot 3 (clic Mot 2)" cells={cells2} selectedPos={pos2} onPick={setPos2} />
+              <PatternCells
+                label="Croisement Mot 2 ↔ Mot 3 (clic Mot 2)"
+                cells={cells2}
+                selectedPos={pos2}
+                onPick={setPos2}
+              />
             ) : (
-              <PatternCells label="Croisement Mot 1 ↔ Mot 2 (clic Mot 2)" cells={cells2} selectedPos={pos2} onPick={setPos2} />
+              <PatternCells
+                label="Croisement Mot 1 ↔ Mot 2 (clic Mot 2)"
+                cells={cells2}
+                selectedPos={pos2}
+                onPick={setPos2}
+              />
             )}
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                alignItems: "center",
+                flexWrap: "wrap",
+              }}
+            >
               <div style={{ fontWeight: 800 }}>Mot 3 (optionnel)</div>
               <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
                 Orientation
-                <select value={dir3} onChange={(e) => setDir3(e.target.value)} style={ui.select}>
+                <select
+                  value={dir3}
+                  onChange={(e) => setDir3(e.target.value)}
+                  style={ui.select}
+                >
                   <option value="H">Horizontal</option>
                   <option value="V">Vertical</option>
                 </select>
@@ -1352,18 +1673,37 @@ function PageCroisement() {
 
             {useThird ? (
               <>
-                <PatternCells label="Croisement Mot 3 ↔ Mot 1 (clic Mot 3)" cells={cells3} selectedPos={pos3a} onPick={setPos3a} />
-                <PatternCells label="Croisement Mot 3 ↔ Mot 2 (clic Mot 3)" cells={cells3} selectedPos={pos3b} onPick={setPos3b} />
+                <PatternCells
+                  label="Croisement Mot 3 ↔ Mot 1 (clic Mot 3)"
+                  cells={cells3}
+                  selectedPos={pos3a}
+                  onPick={setPos3a}
+                />
+                <PatternCells
+                  label="Croisement Mot 3 ↔ Mot 2 (clic Mot 3)"
+                  cells={cells3}
+                  selectedPos={pos3b}
+                  onPick={setPos3b}
+                />
               </>
             ) : (
               <div style={{ opacity: 0.75 }}>
-                Remplis Mot 3 pour activer le mode 3 mots (Mot 1 ↔ Mot 3 et Mot 2 ↔ Mot 3).
+                Remplis Mot 3 pour activer le mode 3 mots (Mot 1 ↔ Mot 3 et Mot
+                2 ↔ Mot 3).
               </div>
             )}
           </div>
         </div>
 
-        <div style={{ marginTop: 12, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+        <div
+          style={{
+            marginTop: 12,
+            display: "flex",
+            gap: 12,
+            alignItems: "center",
+            flexWrap: "wrap",
+          }}
+        >
           <label style={{ display: "flex", gap: 6, alignItems: "center" }}>
             Candidats max / mot
             <input
@@ -1394,18 +1734,24 @@ function PageCroisement() {
           </div>
 
           {!useThird && !dirOk2 ? (
-            <div style={{ opacity: 0.9 }}>Pour un croisement, mets une orientation Horizontal et l’autre Vertical.</div>
+            <div style={{ opacity: 0.9 }}>
+              Pour un croisement, mets une orientation Horizontal et l’autre
+              Vertical.
+            </div>
           ) : null}
           {useThird && (!dirOk13 || !dirOk23) ? (
             <div style={{ opacity: 0.9 }}>
-              Mot 3 doit croiser Mot 1 et Mot 2 : donc Mot 3 doit être d’orientation différente de Mot 1 ET de Mot 2.
+              Mot 3 doit croiser Mot 1 et Mot 2 : donc Mot 3 doit être
+              d’orientation différente de Mot 1 ET de Mot 2.
             </div>
           ) : null}
         </div>
 
         {preview ? (
           <div style={{ marginTop: 12 }}>
-            <div style={{ fontWeight: 800, marginBottom: 6 }}>Contrôle visuel</div>
+            <div style={{ fontWeight: 800, marginBottom: 6 }}>
+              Contrôle visuel
+            </div>
             <pre
               style={{
                 margin: 0,
@@ -1417,11 +1763,14 @@ function PageCroisement() {
             >
               {preview}
             </pre>
-            <div style={{ opacity: 0.75, marginTop: 6 }}>“!” = conflit (lettres différentes au même point). “·” = vide.</div>
+            <div style={{ opacity: 0.75, marginTop: 6 }}>
+              “!” = conflit (lettres différentes au même point). “·” = vide.
+            </div>
           </div>
         ) : (
           <div style={{ marginTop: 12, opacity: 0.75 }}>
-            Renseigne les patterns, mets les orientations, puis clique les cases de croisement (et Mot 3 si utilisé).
+            Renseigne les patterns, mets les orientations, puis clique les cases
+            de croisement (et Mot 3 si utilisé).
           </div>
         )}
       </div>
@@ -1460,13 +1809,22 @@ export default function App() {
       {({ hasDb, exportDb, clearDb }) => (
         <div style={ui.page}>
           <div style={ui.topbar}>
-            <button style={ui.navBtn(active === "mots")} onClick={() => setActive("mots")}>
+            <button
+              style={ui.navBtn(active === "mots")}
+              onClick={() => setActive("mots")}
+            >
               Mots
             </button>
-            <button style={ui.navBtn(active === "pattern")} onClick={() => setActive("pattern")}>
+            <button
+              style={ui.navBtn(active === "pattern")}
+              onClick={() => setActive("pattern")}
+            >
               Pattern
             </button>
-            <button style={ui.navBtn(active === "cross")} onClick={() => setActive("cross")}>
+            <button
+              style={ui.navBtn(active === "cross")}
+              onClick={() => setActive("cross")}
+            >
               Croisement
             </button>
 
@@ -1486,7 +1844,11 @@ export default function App() {
                 const ok = await exportDb();
                 if (ok) setDirty(false);
               }}
-              title={!hasDb ? "Charge une base pour pouvoir exporter" : "Exporter la base SQLite"}
+              title={
+                !hasDb
+                  ? "Charge une base pour pouvoir exporter"
+                  : "Exporter la base SQLite"
+              }
             >
               Exporter la base{dirty ? " *" : ""}
             </button>
@@ -1501,7 +1863,11 @@ export default function App() {
                 const ok = await clearDb();
                 if (ok) setDirty(false);
               }}
-              title={!hasDb ? "Aucune base chargée" : "Supprime la base stockée dans le navigateur"}
+              title={
+                !hasDb
+                  ? "Aucune base chargée"
+                  : "Supprime la base stockée dans le navigateur"
+              }
             >
               Oublier la base
             </button>
